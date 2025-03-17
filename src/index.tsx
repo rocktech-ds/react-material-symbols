@@ -1,86 +1,95 @@
-import type { ElementType, CSSProperties, ReactElement, Ref } from 'react';
+import type { ElementType, CSSProperties, ReactElement, Ref, ForwardedRef, ForwardRefExoticComponent, PropsWithoutRef, RefAttributes, ForwardRefRenderFunction } from 'react';
 import { forwardRef } from 'react';
-import type { MaterialSymbolWeight, PolymorphicComponentProps, SymbolCodepoints } from './types';
+import type {
+  MaterialSymbolWeight,
+  PolymorphicComponentProps,
+  SymbolCodepoints,
+} from './types';
 export type { MaterialSymbolWeight, SymbolCodepoints } from './types';
 import { combineClasses } from './utils';
 
 export type MaterialSymbolProps = {
-	/** Required. The name of the icon to render. */
-	icon: SymbolCodepoints;
-	/** Default `false`.
-	 *
-	 * Fill gives you the ability to modify the default icon style. A single icon can render both unfilled and filled states. */
-	fill?: boolean;
-	/** Weight defines the symbol’s stroke weight, with a range of weights between thin (100) and heavy (900). Weight can also affect the overall size of the symbol. */
-	weight?: MaterialSymbolWeight;
-	/** Weight and grade affect a symbol’s thickness. Adjustments to grade are more granular than adjustments to weight and have a small impact on the size of the symbol. */
-	grade?: number;
-	/** Default `'inherit'`.
-	 *
-	 * Size defines the icon width and height in pixels. For the image to look the same at different sizes, the stroke weight (thickness) changes as the icon size scales. */
-	size?: number;
-	/** Default `'inherit'`
-	 *
-	 * Color accepts key values (`'red'`, `'blue'`, `'indigo'`, etc.), `<hex-color>`, `<rgb()>`, `<hsl()>` and `<hwb()>` values.  */
-	color?: CSSProperties['color'];
-	className?: string;
-	style?: CSSProperties;
+  /** Required. The name of the icon to render. */
+  icon: SymbolCodepoints;
+  /** Default `false`. */
+  fill?: boolean;
+  /** Symbol stroke weight (100 to 900). */
+  weight?: MaterialSymbolWeight;
+  /** Symbol thickness granularity. */
+  grade?: number;
+  /** Icon size in pixels. */
+  size?: number;
+  /** Icon color. */
+  color?: CSSProperties['color'];
+  /** Additional class names. */
+  className?: string;
+  /** Inline styles. */
+  style?: CSSProperties;
+  /** Ref for the icon element. */
+  ref?: Ref<HTMLElement>;
 };
 
-export type PolymorphicMaterialSymbolProps<C extends ElementType> = PolymorphicComponentProps<
-	C,
-	MaterialSymbolProps
->;
+export type PolymorphicMaterialSymbolProps<C extends ElementType> =
+  PolymorphicComponentProps<C, MaterialSymbolProps>;
 
-export const MaterialSymbol = forwardRef(
-	<C extends ElementType>(
-		{
-			icon,
-			onClick,
-			as,
-			weight,
-			fill = false,
-			grade,
-			size,
-			style: propStyle,
-			color,
-			className,
-			...props
-		}: PolymorphicMaterialSymbolProps<C>,
-		ref: Ref<C>
-	): ReactElement => {
-		const Component = onClick !== undefined ? 'button' : (as as ElementType) ?? 'span';
-		const style = { color, ...propStyle };
+type PolymorphicRef<C extends ElementType> =
+  PolymorphicMaterialSymbolProps<C>['ref'];
 
-		if (fill)
-			style.fontVariationSettings = [style.fontVariationSettings, '"FILL" 1']
-				.filter(Boolean)
-				.join(', ');
-		if (weight)
-			style.fontVariationSettings = [style.fontVariationSettings, `"wght" ${weight}`]
-				.filter(Boolean)
-				.join(', ');
-		if (grade)
-			style.fontVariationSettings = [style.fontVariationSettings, `"GRAD" ${grade}`]
-				.filter(Boolean)
-				.join(', ');
-		if (size) {
-			style.fontVariationSettings = [style.fontVariationSettings, `"opsz" ${size}`]
-				.filter(Boolean)
-				.join(', ');
-			style.fontSize = size;
-		}
+type MaterialSymbolComponent = <C extends ElementType = 'span'>(
+  props: PolymorphicMaterialSymbolProps<C> & { ref?: PolymorphicRef<C> },
+) => ReactElement | null;
 
-		return (
-			<Component
-				{...props}
-				ref={ref}
-				style={style}
-				onClick={onClick}
-				className={combineClasses('material-symbols', className)}
-			>
-				{icon}
-			</Component>
-		);
+// Create a specialized forwardRef for polymorphic components
+function polymorphicForwardRef<P, C extends ElementType = 'span'>(
+	render: ForwardRefRenderFunction<any, PropsWithoutRef<P>>
+  ): ForwardRefExoticComponent<PropsWithoutRef<P> & RefAttributes<any>> & {
+	<T extends ElementType = C>(
+	  props: PolymorphicMaterialSymbolProps<T> & RefAttributes<any>
+	): ReactElement | null;
+  } {
+	return forwardRef(render) as any;
+  }
+  
+export const MaterialSymbol = polymorphicForwardRef<PolymorphicMaterialSymbolProps<any>>(
+  ({
+	icon,
+	onClick,
+	as,
+	weight,
+	fill = false,
+	grade,
+	size,
+	style: propStyle,
+	color,
+	className,
+	...props
+  }, ref) => {
+	const Component = onClick ? 'button' : as || 'span';
+	const style: CSSProperties = { color, ...propStyle };
+	const fontVariationSettings: string[] = [];
+  
+	if (fill) fontVariationSettings.push('"FILL" 1');
+	if (weight) fontVariationSettings.push(`"wght" ${weight}`);
+	if (grade) fontVariationSettings.push(`"GRAD" ${grade}`);
+	if (size) {
+	  fontVariationSettings.push(`"opsz" ${size}`);
+	  style.fontSize = size;
 	}
-) as <C extends ElementType>(props: PolymorphicMaterialSymbolProps<C>) => ReactElement;
+  
+	if (fontVariationSettings.length > 0) {
+	  style.fontVariationSettings = fontVariationSettings.join(', ');
+	}
+  
+	return (
+	  <Component
+		{...props}
+		ref={ref}
+		style={style}
+		onClick={onClick}
+		className={combineClasses('material-symbols', className)}
+	  >
+		{icon}
+	  </Component>
+	);
+  }
+  );
